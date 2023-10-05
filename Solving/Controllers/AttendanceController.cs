@@ -19,23 +19,24 @@ public class AttendanceController : Controller
         _context = context;
     }
 
-    // GET: api/<AttendanceController>
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Attendance>>> Get()
-    {
-        return await _context.attendances.ToListAsync();
-    }
+    //// GET: api/<AttendanceController>
+    //[HttpGet]
+    //public async Task<ActionResult<IEnumerable<Attendance>>> Get()
+    //{
+    //    return await _context.attendances.ToListAsync();
+    //}
 
   
 
 
     //Employee Controller start
     // GET: api/<AttendanceController>
-    [HttpGet("employee")]
-    public async Task<ActionResult<IEnumerable<Employeetb>>> Get1()
+    [HttpGet]
+    public async Task<ActionResult<Employeetb>> Get()
     {
         
-        return await _context.employeetbs.ToListAsync();
+        var result= _context.employeetbs.OrderByDescending(e=>e.employeeSalary).Skip(2).First();
+        return result;
     }
 
     //// GET api/<CountryController>/5
