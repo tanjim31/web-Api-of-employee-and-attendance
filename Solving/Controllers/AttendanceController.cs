@@ -5,6 +5,7 @@ using Solving.DbCon;
 using Solving.Model;
 using System.Diagnostics.Metrics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Web.Http;
 using HttpGetAttribute = Microsoft.AspNetCore.Mvc.HttpGetAttribute;
 using HttpPutAttribute = Microsoft.AspNetCore.Mvc.HttpPutAttribute;
@@ -36,45 +37,58 @@ public class AttendanceController : Controller
 
     //Employee Controller start
     // GET: api/<AttendanceController>
-    [HttpGet]
-    public async Task<ActionResult<Employeetb>> Get()
+    [HttpGet("ThirdHighestSalary")]
+    public async Task<ActionResult<Employeetb>> GetThirdHighestSalary()
     {
         
         var result= _context.employeetbs.OrderByDescending(e=>e.employeeSalary).Skip(2).First();// employee who has 3rd salary
         return result;
     }
 
+    [HttpGet("SalaryWithPresent")]
     public async Task<ActionResult<IEnumerable<dynamic>>> GetSalaryCombined()
     {
+        var employeeTable = _context.employeetbs.OrderByDescending(a => a.employeeSalary).ToList();
 
-        var recordsFromTableA = _context.employeetbs.OrderByDescending(a => a.employeeSalary).ToList();
-
-        var recordsFromTableB = _context.attendances
-            .Where(b => b.isPresent == 1)
+        var attendanceTable = _context.attendances
+            .Where(b => b.isAbsent == 0 && b.isPresent==1)
             .OrderByDescending(b => b.isOffday)
             .ToList();
 
-        //Combine the results
-       var combinedRecords = recordsFromTableA.Concat(recordsFromTableB).ToList();
+        // Combine the results using a join
+        //var combinedRecords = from employee in employeeTable
+        //                      join attendance in attendanceTable
+        //                      on employee.employeeId equals attendance.employeeId
+        //                      select new {employee.employeeId, employee.employeeName, employee.employeeSalary, attendance.isAbsent }
+        //                      
 
-        return combinedRecords;
 
+        var combinedRecords = from employee in employeeTable
+                              join attendance in attendanceTable
+                              on employee.employeeId equals attendance.employeeId
+                              group new { employee.employeeId, employee.employeeName, employee.employeeSalary, attendance.isAbsent } by attendance.isAbsent into grouped
+                              select new
+                              {
+                                  IsAbsent = grouped.Key,
+                                  Employees = grouped.ToList()
+                              };
+
+        return combinedRecords.ToList();
     }
 
 
     [HttpGet]
     [Route("api/employeetbs/hierarchy/{employeeId}")]
-    public IHttpActionResult GetHierarchy(int employeeId)
-    {
-        var hierarchy = GetEmployeeHierarchy(employeeId);
-        if (hierarchy == null)
-        {
-            return IHttpActionResult(); // or another appropriate HTTP status code
-        }
-        return Ok(hierarchy);
-       
+    //public IHttpActionResult GetHierarchy(int employeeId)
+    //{
+    //    var hierarchy = GetEmployeeHierarchy(employeeId);
+    //    if (hierarchy == null)
+    //    {
+    //        return IHttpActionResult(); // or another appropriate HTTP status code
+    //    }
+    //    return Ok(hierarchy);
 
-    }
+    //}
     private IHttpActionResult IHttpActionResult()
     {
         throw new NotImplementedException();
@@ -120,7 +134,15 @@ public class AttendanceController : Controller
         {
             return BadRequest();
         }
-        _context.Entry(employeetb).State = EntityState.Modified;
+        //_context.Entry(employeetb).State = EntityState.Modified;
+        var existingEmployeetb = await _context.employeetbs.FindAsync(id);
+        if (existingEmployeetb == null)
+        {
+            return NotFound();
+        }
+        // Update specific properties
+        existingEmployeetb.employeeName = employeetb.employeeName; // Replace with the actual property you want to update
+        existingEmployeetb.employeeCode = employeetb.employeeCode; // Replace with other properties
 
         try
         {
